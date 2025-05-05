@@ -12,12 +12,19 @@ enum UserRole {
   BUSINESS
 }
 
-enum Sector {
-  TECH
-  AGRO
+enum Secteur {
+  TECHNOLOGIE
+  AGRO_HALIEUTIQUE
   COMMERCE
   FINANCE
   SANTE
+  ÉNERGIE_DURABILITE
+  TRANSPORT
+  INDUSTRIE
+  COMMERCE_DISTRIBUTION
+  SERVICES_PROFESSIONNELS
+  TOURISME
+  MEDIA_DIVERTISSEMENT
   EDUCATION
   AUTRE
 }
@@ -33,10 +40,13 @@ enum ProfessionalInterest {
 enum CompanyNeed {
   PRESENTATION_MARQUE
   RESEAU_B2B
-  RECRUTEMENT
-  MARCHES
-  FOURNISSEURS
-  FINANCEMENT
+  TALENTS_QUALIFIES
+  PARTENARIATS_B2B
+  FREELANCES_PRESTATAIRES
+  VISIBILITE_MARKETING_DIGITAL
+  INVESTISSEMENTS
+  MENTORAT
+  FORUMS_SECTORIELS
   AUTRE
 }
 
@@ -47,27 +57,35 @@ enum CompanySize {
   MORE_THAN_250
 }
 
-model Lead {
+enum TypeContrat {
+  CDI
+  CDD
+  FREELANCE
+  AUTRE
+}
+
+model User {
   id            String    @id @default(uuid())
-  firstName     String
-  lastName      String
-  email         String    @unique
-  phone         String?
+  Prénom        String
+  Nom           String
+  Email         String    @unique
+  Téléphone_mobile String?   @unique
   role          UserRole
-  sector        Sector
+  address        String?
+  sector        Secteur
   createdAt     DateTime  @default(now())
-  
-  // For professional leads
-  professionalInterests ProfessionalInterest[]
-  professionalChallenges String?
-  
-  // For business leads
-  companyName   String?
-  companySize   CompanySize?
-  companyNeeds  CompanyNeed[]
-  companyChallenges String?
-  
-  // For newsletter and trial registration
+  emailVerified   Boolean? @db.Boolean  
+
+  // Champs du formulaire court
+  besoinPrincipal ProfessionalInterest
+  typeContrat     TypeContrat? // si besoinPrincipal = EMPLOI
+
+  // Relations
+  professionalDetails ProfessionalDetail?
+  companyDetails      CompanyDetail?
+  bankDetails         BankDetail?
+
+  // Autres champs
   subscribedToNewsletter Boolean @default(false)
   registeredForTrial Boolean @default(false)
   registrationDate DateTime?
@@ -78,4 +96,33 @@ model Lead {
   utmSource String?
   utmMedium String?
   utmCampaign String?
+}
+
+model ProfessionalDetail {
+  id                     String   @id @default(uuid())
+  user                   User     @relation(fields: [userId], references: [id])
+  userId                 String   @unique
+  professionalInterests  ProfessionalInterest[]
+  professionalChallenges String?
+  address String?
+}
+
+model CompanyDetail {
+  id                String      @id @default(uuid())
+  user              User        @relation(fields: [userId], references: [id])
+  userId            String      @unique
+  companyName       String
+  companySize       CompanySize
+  companyNeeds      CompanyNeed[]
+  companyChallenges String?
+}
+
+model BankDetail {
+  id            String   @id @default(uuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String   @unique
+  bankName      String
+  accountNumber String
+  rib           String
+  swiftCode     String?
 }

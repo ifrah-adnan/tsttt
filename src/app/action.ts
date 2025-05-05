@@ -1,131 +1,293 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { PrismaClient, UserRole, Secteur, ProfessionalInterest, CompanySize, CompanyNeed, TypeContrat } from "@prisma/client"
 import { z } from "zod"
-import { PrismaClient } from "@prisma/client"
-
 
 const prisma = new PrismaClient()
 
-// Modification du schéma professionalLeadSchema pour rendre les paramètres UTM optionnels
+// Schéma pour les professionnels
 const professionalLeadSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
   lastName: z.string().min(1, "Le nom est requis"),
   email: z.string().email("Email invalide"),
   phone: z.string().optional(),
-  sector: z.enum(["TECH", "AGRO", "COMMERCE", "FINANCE", "SANTE", "EDUCATION", "AUTRE"]),
-  professionalInterests: z
-    .array(z.enum(["MENTORAT", "RESEAUTAGE", "EMPLOI", "FORMATION", "AUTRE"]))
-    .min(1, "Sélectionnez au moins un intérêt"),
+  address: z.string().min(1, "L'adresse est requise"),
+  sector: z.nativeEnum(Secteur),
+  professionalInterests: z.array(z.nativeEnum(ProfessionalInterest)).min(1, "Sélectionnez au moins un intérêt"),
   professionalChallenges: z.string().optional(),
   subscribedToNewsletter: z.boolean().default(false),
-  registeredForTrial: z.boolean().default(true),
   referralSource: z.string().optional(),
   utmSource: z.string().optional().nullable(),
   utmMedium: z.string().optional().nullable(),
   utmCampaign: z.string().optional().nullable(),
+  emailVerified: z.boolean().default(false),
+  contractType: z.nativeEnum(TypeContrat).optional(),
 })
 
-// Modification du schéma businessLeadSchema pour rendre les paramètres UTM optionnels
+// Schéma pour les entreprises
 const businessLeadSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
   lastName: z.string().min(1, "Le nom est requis"),
   email: z.string().email("Email invalide"),
   phone: z.string().optional(),
-  sector: z.enum(["TECH", "AGRO", "COMMERCE", "FINANCE", "SANTE", "EDUCATION", "AUTRE"]),
+  address: z.string().min(1, "L'adresse est requise"),
+  sector: z.nativeEnum(Secteur),
   companyName: z.string().min(1, "Le nom de l'entreprise est requis"),
-  companySize: z.enum(["LESS_THAN_10", "BETWEEN_10_50", "BETWEEN_50_250", "MORE_THAN_250"]),
-  companyNeeds: z
-    .array(
-      z.enum(["PRESENTATION_MARQUE", "RESEAU_B2B", "RECRUTEMENT", "MARCHES", "FOURNISSEURS", "FINANCEMENT", "AUTRE"]),
-    )
-    .min(1, "Sélectionnez au moins un besoin"),
+  companySize: z.nativeEnum(CompanySize),
+  companyNeeds: z.array(z.nativeEnum(CompanyNeed)).min(1, "Sélectionnez au moins un besoin"),
   companyChallenges: z.string().optional(),
   subscribedToNewsletter: z.boolean().default(false),
-  registeredForTrial: z.boolean().default(true),
   referralSource: z.string().optional(),
   utmSource: z.string().optional().nullable(),
   utmMedium: z.string().optional().nullable(),
   utmCampaign: z.string().optional().nullable(),
+  emailVerified: z.boolean().default(false),
 })
 
 export async function registerProfessional(formData: FormData) {
   try {
-    // Extract and validate form data
-    const data = {
-      firstName: formData.get("firstName") as string,
-      lastName: formData.get("lastName") as string,
-      email: formData.get("email") as string,
-      phone: formData.get("phone") as string,
-      sector: formData.get("sector") as any,
-      professionalInterests: formData.getAll("professionalInterests") as any[],
-      professionalChallenges: formData.get("professionalChallenges") as string,
+    const rawData = {
+      firstName: formData.get("firstName"),
+      lastName: formData.get("lastName"),
+      email: formData.get("email"),
+      phone: formData.get("phone"),
+      address: formData.get("address"),
+      sector: formData.get("sector"),
+      professionalInterests: formData.getAll("professionalInterests"),
+      professionalChallenges: formData.get("professionalChallenges"),
       subscribedToNewsletter: formData.get("subscribedToNewsletter") === "on",
-      registeredForTrial: true,
-      referralSource: formData.get("referralSource") as string,
-      // Capture UTM parameters if available
-      utmSource: formData.get("utmSource") as string,
-      utmMedium: formData.get("utmMedium") as string,
-      utmCampaign: formData.get("utmCampaign") as string,
+      referralSource: formData.get("referralSource"),
+      utmSource: formData.get("utmSource"),
+      utmMedium: formData.get("utmMedium"),
+      utmCampaign: formData.get("utmCampaign"),
+      emailVerified: formData.get("emailVerified") === "true",
+      contractType: formData.get("contractType"),
     }
 
-    // Validate the data
-    const validatedData = professionalLeadSchema.parse(data)
+    const validated = professionalLeadSchema.parse(rawData)
 
-    // Save to database
-    await prisma.lead.create({
-      data: {
-        ...validatedData,
-        role: "PROFESSIONAL",
-        registrationDate: new Date(),
-        ipAddress: "127.0.0.1", // In a real app, you would capture the actual IP
-      },
+    // Déterminer le type de contrat si l'intérêt principal est l'emploi
+    let typeContrat = validated.contractType || undefined
+
+    const existingUser = await prisma.user.findUnique({
+      where: { Email: validated.email },
     })
 
+    if (existingUser) {
+      const user = await prisma.user.update({
+        where: { Email: validated.email },
+        data: {
+          Prénom: validated.firstName,
+          Nom: validated.lastName,
+          Téléphone_mobile: validated.phone || null,
+          address: validated.address,
+          sector: validated.sector,
+          besoinPrincipal: ProfessionalInterest.EMPLOI,
+          typeContrat: typeContrat,
+          subscribedToNewsletter: validated.subscribedToNewsletter,
+          referralSource: validated.referralSource || null,
+          utmSource: validated.utmSource || null,
+          utmMedium: validated.utmMedium || null,
+          utmCampaign: validated.utmCampaign || null,
+          emailVerified: validated.emailVerified,
+          professionalDetails: {
+            upsert: {
+              create: {
+                professionalInterests: validated.professionalInterests as ProfessionalInterest[],
+                professionalChallenges: validated.professionalChallenges || null,
+                address: validated.address,
+              },
+              update: {
+                professionalInterests: validated.professionalInterests as ProfessionalInterest[],
+                professionalChallenges: validated.professionalChallenges || null,
+                address: validated.address,
+              },
+            },
+          },
+        },
+      })
+      return { success: true, user }
+    } else {
+      const user = await prisma.user.create({
+        data: {
+          Prénom: validated.firstName,
+          Nom: validated.lastName,
+          Email: validated.email,
+          Téléphone_mobile: validated.phone || null,
+          role: UserRole.PROFESSIONAL,
+          address: validated.address,
+          sector: validated.sector,
+          besoinPrincipal: ProfessionalInterest.EMPLOI,
+          typeContrat: typeContrat,
+          subscribedToNewsletter: validated.subscribedToNewsletter,
+          registeredForTrial: true,
+          referralSource: validated.referralSource || null,
+          utmSource: validated.utmSource || null,
+          utmMedium: validated.utmMedium || null,
+          utmCampaign: validated.utmCampaign || null,
+          registrationDate: new Date(),
+          ipAddress: "127.0.0.1",
+          emailVerified: validated.emailVerified,
+          professionalDetails: {
+            create: {
+              professionalInterests: validated.professionalInterests as ProfessionalInterest[],
+              professionalChallenges: validated.professionalChallenges || null,
+              address: validated.address,
+            },
+          },
+        },
+      })
+      return { success: true, user }
+    }
   } catch (error) {
-    console.error("Error registering professional:", error)
-    return { error: "Une erreur est survenue lors de l'inscription. Veuillez réessayer." }
+    if (error instanceof z.ZodError) {
+      return {
+        error: "Validation failed",
+        details: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
+      }
+    }
+    console.error("Erreur inscription professionnel :", error)
+    return { error: "Erreur lors de l'inscription. Veuillez réessayer." }
   }
 }
 
 export async function registerBusiness(formData: FormData) {
   try {
-    // Extract and validate form data
-    const data = {
-      firstName: formData.get("firstName") as string,
-      lastName: formData.get("lastName") as string,
-      email: formData.get("email") as string,
-      phone: formData.get("phone") as string,
-      sector: formData.get("sector") as any,
-      companyName: formData.get("companyName") as string,
-      companySize: formData.get("companySize") as any,
-      companyNeeds: formData.getAll("companyNeeds") as any[],
-      companyChallenges: formData.get("companyChallenges") as string,
+    const rawData = {
+      firstName: formData.get("firstName"),
+      lastName: formData.get("lastName"),
+      email: formData.get("email"),
+      phone: formData.get("phone"),
+      address: formData.get("address"),
+      sector: formData.get("sector"),
+      companyName: formData.get("companyName"),
+      companySize: formData.get("companySize"),
+      companyNeeds: formData.getAll("companyNeeds"),
+      companyChallenges: formData.get("companyChallenges"),
       subscribedToNewsletter: formData.get("subscribedToNewsletter") === "on",
-      registeredForTrial: true,
-      referralSource: formData.get("referralSource") as string,
-      // Capture UTM parameters if available
-      utmSource: formData.get("utmSource") as string,
-      utmMedium: formData.get("utmMedium") as string,
-      utmCampaign: formData.get("utmCampaign") as string,
+      referralSource: formData.get("referralSource"),
+      utmSource: formData.get("utmSource"),
+      utmMedium: formData.get("utmMedium"),
+      utmCampaign: formData.get("utmCampaign"),
+      emailVerified: formData.get("emailVerified") === "true",
     }
 
-    // Validate the data
-    const validatedData = businessLeadSchema.parse(data)
+    const validated = businessLeadSchema.parse(rawData)
 
-    // Save to database
-    await prisma.lead.create({
-      data: {
-        ...validatedData,
-        role: "BUSINESS",
-        registrationDate: new Date(),
-        ipAddress: "127.0.0.1", // In a real app, you would capture the actual IP
-      },
+    const existingUser = await prisma.user.findUnique({
+      where: { Email: validated.email },
     })
 
+    if (existingUser) {
+      const user = await prisma.user.update({
+        where: { Email: validated.email },
+        data: {
+          Prénom: validated.firstName,
+          Nom: validated.lastName,
+          Téléphone_mobile: validated.phone || null,
+          address: validated.address,
+          sector: validated.sector,
+          besoinPrincipal: ProfessionalInterest.AUTRE,
+          subscribedToNewsletter: validated.subscribedToNewsletter,
+          referralSource: validated.referralSource || null,
+          utmSource: validated.utmSource || null,
+          utmMedium: validated.utmMedium || null,
+          utmCampaign: validated.utmCampaign || null,
+          emailVerified: validated.emailVerified,
+          companyDetails: {
+            upsert: {
+              create: {
+                companyName: validated.companyName,
+                companySize: validated.companySize,
+                companyNeeds: validated.companyNeeds as CompanyNeed[],
+                companyChallenges: validated.companyChallenges || null,
+              },
+              update: {
+                companyName: validated.companyName,
+                companySize: validated.companySize,
+                companyNeeds: validated.companyNeeds as CompanyNeed[],
+                companyChallenges: validated.companyChallenges || null,
+              },
+            },
+          },
+        },
+      })
+      return { success: true, user }
+    } else {
+      const user = await prisma.user.create({
+        data: {
+          Prénom: validated.firstName,
+          Nom: validated.lastName,
+          Email: validated.email,
+          Téléphone_mobile: validated.phone || null,
+          role: UserRole.BUSINESS,
+          address: validated.address,
+          sector: validated.sector,
+          besoinPrincipal: ProfessionalInterest.AUTRE,
+          subscribedToNewsletter: validated.subscribedToNewsletter,
+          registeredForTrial: true,
+          referralSource: validated.referralSource || null,
+          utmSource: validated.utmSource || null,
+          utmMedium: validated.utmMedium || null,
+          utmCampaign: validated.utmCampaign || null,
+          registrationDate: new Date(),
+          ipAddress: "127.0.0.1",
+          emailVerified: validated.emailVerified,
+          companyDetails: {
+            create: {
+              companyName: validated.companyName,
+              companySize: validated.companySize,
+              companyNeeds: validated.companyNeeds as CompanyNeed[],
+              companyChallenges: validated.companyChallenges || null,
+            },
+          },
+        },
+      })
+      return { success: true, user }
+    }
   } catch (error) {
-    console.error("Error registering business:", error)
-    return { error: "Une erreur est survenue lors de l'inscription. Veuillez réessayer." }
+    if (error instanceof z.ZodError) {
+      return {
+        error: "Validation failed",
+        details: error.errors.map(e => ({
+          path: e.path.join('.'),
+          message: e.message
+        }))
+      }
+    }
+    console.error("Erreur inscription entreprise :", error)
+    return { error: "Erreur lors de l'inscription. Veuillez réessayer." }
+  }
+}
+
+export async function verifyEmail(email: string) {
+  try {
+    // Envoyer l'email de vérification ici
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    return { success: true }
+  } catch (error) {
+    console.error("Erreur vérification email :", error)
+    return { error: "Erreur lors de l'envoi du code de vérification" }
+  }
+}
+
+export async function confirmVerificationCode(email: string, code: string) {
+  try {
+    // Vérifier le code ici
+    await new Promise(resolve => setTimeout(resolve, 1000))
+
+    await prisma.user.update({
+      where: { Email: email },
+      data: { emailVerified: true },
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error("Erreur confirmation code :", error)
+    return { error: "Code de vérification invalide" }
   }
 }
 
@@ -137,35 +299,31 @@ export async function subscribeToNewsletter(formData: FormData) {
   }
 
   try {
-    // Check if lead already exists
-    const existingLead = await prisma.lead.findUnique({
-      where: { email },
-    })
+    const existingUser = await prisma.user.findUnique({ where: { Email: email } })
 
-    if (existingLead) {
-      // Update existing lead
-      await prisma.lead.update({
-        where: { email },
+    if (existingUser) {
+      await prisma.user.update({
+        where: { Email: email },
         data: { subscribedToNewsletter: true },
       })
     } else {
-      // Create new lead with minimal info
-      await prisma.lead.create({
+      await prisma.user.create({
         data: {
-          email,
-          firstName: "",
-          lastName: "",
-          role: "PROFESSIONAL", // Default role
-          sector: "AUTRE", // Default sector
+          Email: email,
+          Prénom: "",
+          Nom: "",
+          role: UserRole.PROFESSIONAL,
+          address: "",
+          sector: Secteur.AUTRE,
+          besoinPrincipal: ProfessionalInterest.AUTRE,
           subscribedToNewsletter: true,
         },
       })
     }
 
-    revalidatePath("/")
     return { success: true }
   } catch (error) {
-    console.error("Error subscribing to newsletter:", error)
+    console.error("Erreur newsletter :", error)
     return { error: "Une erreur est survenue. Veuillez réessayer." }
   }
 }
