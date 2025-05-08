@@ -65,37 +65,36 @@ enum TypeContrat {
 }
 
 model User {
-  id            String    @id @default(uuid())
-  Prénom        String
-  Nom           String
-  Email         String    @unique
-  Téléphone_mobile String?   @unique
-  role          UserRole
-  address        String?
-  sector        Secteur
-  createdAt     DateTime  @default(now())
-  emailVerified   Boolean? @db.Boolean  
+  id                   String    @id @default(uuid())
+  Prénom               String
+  Nom                  String
+  Email                String    @unique
+  Téléphone_mobile     String    @unique
+  role                 UserRole
+  address              String?
+  sector               Secteur
+  createdAt            DateTime  @default(now())
+  emailVerified        Boolean?  @db.Boolean
 
   // Champs du formulaire court
-  besoinPrincipal ProfessionalInterest
-  typeContrat     TypeContrat? // si besoinPrincipal = EMPLOI
+  besoinPrincipal      ProfessionalInterest
+  typeContrat          TypeContrat? // si besoinPrincipal = EMPLOI
 
   // Relations
-  professionalDetails ProfessionalDetail?
-  companyDetails      CompanyDetail?
-  bankDetails         BankDetail?
+  professionalDetails  ProfessionalDetail?
+  companyDetails       CompanyDetail?
 
   // Autres champs
   subscribedToNewsletter Boolean @default(false)
-  registeredForTrial Boolean @default(false)
-  registrationDate DateTime?
+  registeredForTrial     Boolean @default(false)
+  registrationDate       DateTime?
   
   // For tracking
-  referralSource String?
-  ipAddress String?
-  utmSource String?
-  utmMedium String?
-  utmCampaign String?
+  referralSource         String?
+  ipAddress              String?
+  utmSource              String?
+  utmMedium              String?
+  utmCampaign            String?
 }
 
 model ProfessionalDetail {
@@ -104,7 +103,7 @@ model ProfessionalDetail {
   userId                 String   @unique
   professionalInterests  ProfessionalInterest[]
   professionalChallenges String?
-  address String?
+  address                String?
 }
 
 model CompanyDetail {
@@ -115,14 +114,4 @@ model CompanyDetail {
   companySize       CompanySize
   companyNeeds      CompanyNeed[]
   companyChallenges String?
-}
-
-model BankDetail {
-  id            String   @id @default(uuid())
-  user          User     @relation(fields: [userId], references: [id])
-  userId        String   @unique
-  bankName      String
-  accountNumber String
-  rib           String
-  swiftCode     String?
 }

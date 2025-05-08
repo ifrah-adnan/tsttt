@@ -12,19 +12,17 @@ export default function SuccessPage() {
           </div>
           <h1 className="text-2xl font-bold">Inscription réussie!</h1>
           <p className="text-muted-foreground">
-            Merci de vous être inscrit pour notre essai gratuit d'un mois. Nous avons envoyé un email de confirmation à
-            votre adresse email.
+          Merci de vous être inscrit à notre essai gratuit d'un mois.
+          Vous recevrez un e-mail dès le lancement de Catchub.
           </p>
         </div>
 
         <div className="space-y-4">
           <div className="rounded-lg border p-4 bg-muted/50">
-            <h2 className="font-medium mb-2">Prochaines étapes</h2>
+            <h2 className="font-medium mb-2">Prochaine étape</h2>
             <ul className="space-y-2 text-sm text-left list-disc list-inside">
-              <li>Vérifiez votre email pour confirmer votre inscription</li>
-              <li>Complétez votre profil pour une expérience personnalisée</li>
-              <li>Explorez la plateforme et découvrez toutes les fonctionnalités</li>
-              <li>Nous vous contacterons avant le lancement officiel</li>
+        
+              <li> Votre inscription est validée. Nous vous avertirons avant l'ouverture officielle pour profiter de votre essai.</li>
             </ul>
           </div>
 
