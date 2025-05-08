@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserRound, Building2 } from 'lucide-react'
 import ProfessionalForm from "@/components/professional-form"
-import BusinessForm from "@/components/business-form"
+// import BusinessForm from "@/components/business-form"
 
 export default function RegisterPage() {
   const [activeTab, setActiveTab] = useState<string | null>(null)
@@ -84,7 +84,7 @@ export default function RegisterPage() {
                 </div>
               ) : (
                 <div className="w-full h-full">
-                  <BusinessForm utmSource={utmSource} utmMedium={utmMedium} utmCampaign={utmCampaign} />
+                  {/* <BusinessForm utmSource={utmSource} utmMedium={utmMedium} utmCampaign={utmCampaign} /> */}
                 </div>
               )}
             </CardContent>
