@@ -140,6 +140,7 @@ async function checkUniqueEmailAndPhone(email: string, phone: string) {
 }
 
 export async function registerProfessional(formData: FormData) {
+  
   try {
     // Log the received form data for debugging
     console.log("Form data received:", Object.fromEntries(formData.entries()))
