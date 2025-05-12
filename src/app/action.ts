@@ -228,8 +228,8 @@ export async function registerProfessional(formData: FormData) {
               create: {
                 professionalInterests: validated.professionalInterests as any[],
                 professionalChallenges: validated.professionalChallenges || null,
-                city: validated.city, // Renommé de "address" à "city"
-                country: validated.country, // Nouveau champ
+                city: validated.city, 
+                country: validated.country, 
               },
               update: {
                 professionalInterests: validated.professionalInterests as any[],

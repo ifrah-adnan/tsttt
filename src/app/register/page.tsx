@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { UserRound, Building2, CheckCircle, Star, Gift, Clock, Zap, ArrowLeft } from "lucide-react"
 import ProfessionalForm from "@/components/professional-form"
 import { motion } from "framer-motion"
-import BusinessForm from "@/components/business-form"
+// import BusinessForm from "@/components/business-form"
 
 export default function RegisterPage() {
   const [activeTab, setActiveTab] = useState<string | null>(null)
