@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowRight, Loader2, CheckCircle2, AlertCircle, User, Mail, MapPin, Briefcase, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
 import EmailVerification from "@/components/email-verification"
-import { z } from "zod"
+import { z } from "zod" 
 import { customToast } from "@/components/ui/toast"
 import { emailSchema } from "@/utils/validation"
 import PhoneInput from "react-phone-number-input"
