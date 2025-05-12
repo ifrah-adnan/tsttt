@@ -228,14 +228,14 @@ export async function registerProfessional(formData: FormData) {
               create: {
                 professionalInterests: validated.professionalInterests as any[],
                 professionalChallenges: validated.professionalChallenges || null,
-                city: validated.city, 
-                country: validated.country, 
+                city: validated.city,
+                country: validated.country,
               },
               update: {
                 professionalInterests: validated.professionalInterests as any[],
                 professionalChallenges: validated.professionalChallenges || null,
-                city: validated.city, // Renommé de "address" à "city"
-                country: validated.country, // Nouveau champ
+                city: validated.city,
+                country: validated.country,
               },
             },
           },
@@ -268,8 +268,8 @@ export async function registerProfessional(formData: FormData) {
             create: {
               professionalInterests: validated.professionalInterests as any[],
               professionalChallenges: validated.professionalChallenges || null,
-              city: validated.city, // Renommé de "address" à "city"
-              country: validated.country, // Nouveau champ
+              city: validated.city,
+              country: validated.country,
             },
           },
         },
@@ -352,12 +352,16 @@ export async function registerBusiness(formData: FormData) {
                 companySize: validated.companySize as any,
                 companyNeeds: validated.companyNeeds as any[],
                 companyChallenges: validated.companyChallenges || null,
+                city: validated.address, // Ajout du champ city pour les entreprises
+                country: null, // Peut être ajouté si besoin dans le formulaire
               },
               update: {
                 companyName: validated.companyName,
                 companySize: validated.companySize as any,
                 companyNeeds: validated.companyNeeds as any[],
                 companyChallenges: validated.companyChallenges || null,
+                city: validated.address, // Ajout du champ city pour les entreprises
+                country: null, // Peut être ajouté si besoin dans le formulaire
               },
             },
           },
@@ -390,6 +394,8 @@ export async function registerBusiness(formData: FormData) {
               companySize: validated.companySize as any,
               companyNeeds: validated.companyNeeds as any[],
               companyChallenges: validated.companyChallenges || null,
+              city: validated.address, // Ajout du champ city pour les entreprises
+              country: null, // Peut être ajouté si besoin dans le formulaire
             },
           },
         },
