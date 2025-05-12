@@ -71,7 +71,8 @@ model User {
   Email                String    @unique
   Téléphone_mobile     String    @unique
   role                 UserRole
-  address              String?
+  city                 String?   
+  country              String?   
   sector               Secteur
   createdAt            DateTime  @default(now())
   emailVerified        Boolean?  @db.Boolean
@@ -103,7 +104,8 @@ model ProfessionalDetail {
   userId                 String   @unique
   professionalInterests  ProfessionalInterest[]
   professionalChallenges String?
-  address                String?
+  city                   String?  
+  country                String?
 }
 
 model CompanyDetail {
@@ -114,4 +116,7 @@ model CompanyDetail {
   companySize       CompanySize
   companyNeeds      CompanyNeed[]
   companyChallenges String?
+  // Vous pourriez également vouloir ajouter city et country ici
+  city              String?
+  country           String?
 }

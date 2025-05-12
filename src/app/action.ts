@@ -75,7 +75,8 @@ const professionalLeadSchema = z.object({
     .refine((phone) => /^\+?[0-9\s-]{6,}$/.test(phone), {
       message: "Numéro de téléphone invalide",
     }),
-  address: z.string().optional().default(""),
+  city: z.string().optional().default(""), // Renommé de "address" à "city"
+  country: z.string().min(1, "Le pays est requis"), // Nouveau champ obligatoire
   sector: z.nativeEnum(Secteur),
   professionalInterests: z.array(z.nativeEnum(ProfessionalInterest)).min(1, "Sélectionnez au moins un intérêt"),
   professionalChallenges: z.string().optional().default(""),
@@ -152,7 +153,8 @@ export async function registerProfessional(formData: FormData) {
       lastName: formData.get("lastName") as string,
       email: formData.get("email") as string,
       phone: formData.get("phone") as string,
-      address: (formData.get("address") as string) || "",
+      city: (formData.get("city") as string) || "", // Renommé de "address" à "city"
+      country: formData.get("country") as string, // Nouveau champ
       sector: formData.get("sector") as string,
       professionalInterests: professionalInterests as string[],
       professionalChallenges: (formData.get("professionalChallenges") as string) || "",
@@ -210,7 +212,8 @@ export async function registerProfessional(formData: FormData) {
           Prénom: validated.firstName,
           Nom: validated.lastName,
           Téléphone_mobile: validated.phone,
-          address: validated.address,
+          city: validated.city, // Renommé de "address" à "city"
+          country: validated.country, // Nouveau champ
           sector: validated.sector as any,
           besoinPrincipal: ProfessionalInterest.EMPLOI as any,
           typeContrat: typeContrat as any,
@@ -225,12 +228,14 @@ export async function registerProfessional(formData: FormData) {
               create: {
                 professionalInterests: validated.professionalInterests as any[],
                 professionalChallenges: validated.professionalChallenges || null,
-                address: validated.address,
+                city: validated.city, // Renommé de "address" à "city"
+                country: validated.country, // Nouveau champ
               },
               update: {
                 professionalInterests: validated.professionalInterests as any[],
                 professionalChallenges: validated.professionalChallenges || null,
-                address: validated.address,
+                city: validated.city, // Renommé de "address" à "city"
+                country: validated.country, // Nouveau champ
               },
             },
           },
@@ -245,7 +250,8 @@ export async function registerProfessional(formData: FormData) {
           Email: validated.email,
           Téléphone_mobile: validated.phone,
           role: UserRole.PROFESSIONAL as any,
-          address: validated.address,
+          city: validated.city, // Renommé de "address" à "city"
+          country: validated.country, // Nouveau champ
           sector: validated.sector as any,
           besoinPrincipal: ProfessionalInterest.EMPLOI as any,
           typeContrat: typeContrat as any,
@@ -262,7 +268,8 @@ export async function registerProfessional(formData: FormData) {
             create: {
               professionalInterests: validated.professionalInterests as any[],
               professionalChallenges: validated.professionalChallenges || null,
-              address: validated.address,
+              city: validated.city, // Renommé de "address" à "city"
+              country: validated.country, // Nouveau champ
             },
           },
         },
@@ -329,7 +336,7 @@ export async function registerBusiness(formData: FormData) {
           Prénom: validated.firstName,
           Nom: validated.lastName,
           Téléphone_mobile: validated.phone,
-          address: validated.address,
+          city: validated.address,
           sector: validated.sector as any,
           besoinPrincipal: ProfessionalInterest.AUTRE as any,
           subscribedToNewsletter: validated.subscribedToNewsletter,
@@ -365,7 +372,7 @@ export async function registerBusiness(formData: FormData) {
           Email: validated.email,
           Téléphone_mobile: validated.phone,
           role: UserRole.BUSINESS as any,
-          address: validated.address,
+          city: validated.address,
           sector: validated.sector as any,
           besoinPrincipal: ProfessionalInterest.AUTRE as any,
           subscribedToNewsletter: validated.subscribedToNewsletter,
@@ -455,7 +462,7 @@ export async function subscribeToNewsletter(formData: FormData) {
           Prénom: "",
           Nom: "",
           role: UserRole.PROFESSIONAL as any,
-          address: "",
+          city: "",
           sector: Secteur.AUTRE as any,
           besoinPrincipal: ProfessionalInterest.AUTRE as any,
           subscribedToNewsletter: true,

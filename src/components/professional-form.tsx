@@ -17,15 +17,14 @@ import { customToast } from "@/components/ui/toast"
 import { emailSchema } from "@/utils/validation"
 import PhoneInput from "react-phone-number-input"
 import "react-phone-number-input/style.css"
-// Suppression de l'import du fichier CSS personnalisé
 
-// Schéma de validation Zod
 const formSchema = z.object({
   firstName: z.string().min(1, "Le prénom est requis"),
   lastName: z.string().min(1, "Le nom est requis"),
   email: emailSchema,
   phone: z.string().min(1, "Le numéro de téléphone est requis"),
-  address: z.string().optional(),
+  city: z.string().optional(),
+  country: z.string().min(1, "Le pays est requis"),
   sector: z.string().min(1, "Sélectionnez un secteur"),
   professionalInterests: z.array(z.string()).min(1, "Sélectionnez au moins un intérêt"),
   professionalChallenges: z.string().optional(),
@@ -53,7 +52,8 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
     lastName: "",
     email: "",
     phone: "",
-    address: "",
+    city: "",
+    country: "",
     sector: "",
     professionalInterests: [] as string[],
     professionalChallenges: "",
@@ -65,7 +65,6 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
     if (onStepChange) onStepChange(step)
   }, [step, onStepChange])
 
-  // Fonction pour vérifier l'unicité d'un champ
   const checkUnique = async (field: string, value: string) => {
     try {
       const response = await fetch("/api/check-unique", {
@@ -91,18 +90,14 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
       }
     } catch (error) {
       console.error(`Erreur lors de la vérification de l'unicité du ${field}:`, error)
-      return true // En cas d'erreur, on laisse passer pour ne pas bloquer l'utilisateur
+      return true
     }
   }
 
-  // Gestionnaire pour la perte de focus sur l'email
   const handleEmailBlur = async (e: React.FocusEvent<HTMLInputElement>) => {
     const email = e.target.value.trim()
-
-    // Vérifier d'abord si l'email est valide
     try {
       emailSchema.parse(email)
-
       if (email) {
         setIsCheckingEmail(true)
         await checkUnique("email", email)
@@ -115,37 +110,27 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
     }
   }
 
-  // Gestionnaire pour le changement de numéro de téléphone
   const handlePhoneChange = (value: string | undefined) => {
     setFormData((prev) => ({ ...prev, phone: value || "" }))
-
-    // Effacer l'erreur si le champ est vide
     if (!value) {
       setErrors((prev) => {
         const newErrors = { ...prev }
         delete newErrors.phone
         return newErrors
       })
-      return
     }
   }
 
-  // Gestionnaire pour la perte de focus sur le téléphone
   const handlePhoneBlur = async () => {
     const phone = formData.phone.trim()
-
     if (!phone) {
       setErrors((prev) => ({ ...prev, phone: "Le numéro de téléphone est requis" }))
       return
     }
-
-    // Vérifier si le numéro est valide selon un format international simple
     if (!/^\+?[0-9\s-]{6,}$/.test(phone)) {
       setErrors((prev) => ({ ...prev, phone: "Numéro de téléphone invalide" }))
       return
     }
-
-    // Si le numéro est valide, vérifier son unicité
     setIsCheckingPhone(true)
     await checkUnique("phone", phone)
     setIsCheckingPhone(false)
@@ -160,6 +145,7 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
               lastName: true,
               email: true,
               phone: true,
+              country: true,
             })
           : stepToValidate === 3
             ? formSchema.pick({
@@ -172,7 +158,6 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
         partialSchema.parse(formData)
       }
 
-      // Vérifier s'il y a des erreurs d'unicité pour l'étape 1
       if (stepToValidate === 1 && (errors.email || errors.phone)) {
         customToast({
           title: "Erreur de validation",
@@ -182,7 +167,6 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
         return false
       }
 
-      // Vérification spécifique pour le téléphone à l'étape 1
       if (stepToValidate === 1 && formData.phone) {
         if (!/^\+?[0-9\s-]{6,}$/.test(formData.phone)) {
           setErrors((prev) => ({ ...prev, phone: "Numéro de téléphone invalide" }))
@@ -195,7 +179,6 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
         }
       }
 
-      // Vérifier les erreurs spécifiques à l'étape 3
       if (stepToValidate === 3) {
         if (!formData.sector) {
           setErrors((prev) => ({ ...prev, sector: "Sélectionnez un secteur" }))
@@ -246,13 +229,13 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
     }
 
     try {
-      // Create a simple object with all the form data
       const dataToSend = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         phone: formData.phone,
-        address: formData.address || "",
+        city: formData.city || "",
+        country: formData.country,
         sector: formData.sector,
         professionalInterests: formData.professionalInterests,
         professionalChallenges: formData.professionalChallenges || "",
@@ -264,17 +247,12 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
         utmCampaign: utmCampaign || "",
       }
 
-      // Convert to FormData
       const formDataObj = new FormData()
-
-      // Handle regular fields
       Object.entries(dataToSend).forEach(([key, value]) => {
         if (key !== "professionalInterests") {
           formDataObj.append(key, String(value))
         }
       })
-
-      // Handle the array separately
       if (dataToSend.professionalInterests && dataToSend.professionalInterests.length > 0) {
         dataToSend.professionalInterests.forEach((interest) => {
           formDataObj.append("professionalInterests", interest)
@@ -284,7 +262,6 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
       const result = await registerProfessional(formDataObj)
 
       if (result.error) {
-        // Handle specific field errors
         if (result.field === "email") {
           setErrors((prev) => ({ ...prev, email: result.error || "" }))
           customToast({
@@ -323,41 +300,41 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
 
   const renderProgressSteps = () => {
     const steps = [
-      { number: 1, title: "Identité", icon: <User size={16} /> },
-      { number: 2, title: "Vérification", icon: <Shield size={16} /> },
-      { number: 3, title: "Profil", icon: <Briefcase size={16} /> },
+      { number: 1, title: "Identité", icon: <User size={18} /> },
+      { number: 2, title: "Vérification", icon: <Shield size={18} /> },
+      { number: 3, title: "Profil", icon: <Briefcase size={18} /> },
     ]
 
     return (
-      <div className="mb-10">
+      <div className="mb-12">
         <div className="flex items-center justify-between relative">
           {steps.map((stepItem) => (
             <div key={stepItem.number} className="flex flex-col items-center z-10">
               <div
-                className={`w-12 h-12 rounded-full flex items-center justify-center border-2 shadow-sm transition-all duration-300 ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center border-2 shadow-md transition-all duration-300 ${
                   step >= stepItem.number
-                    ? "bg-gradient-to-r from-blue-600 to-blue-700 border-blue-600 text-white"
-                    : "bg-white border-gray-300 text-gray-500"
+                    ? "bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-600 text-white"
+                    : "bg-white border-gray-200 text-gray-400"
                 }`}
               >
                 {step > stepItem.number ? (
-                  <CheckCircle2 className="text-white" size={20} />
+                  <CheckCircle2 className="text-white" size={18} />
                 ) : (
-                  <div className="flex items-center justify-center">{stepItem.icon}</div>
+                  stepItem.icon
                 )}
               </div>
               <span
-                className={`text-sm mt-3 font-medium transition-colors duration-300 ${
-                  step >= stepItem.number ? "text-blue-700" : "text-gray-500"
+                className={`text-xs font-semibold mt-2 transition-colors duration-300 ${
+                  step >= stepItem.number ? "text-gray-900" : "text-gray-500"
                 }`}
               >
                 {stepItem.title}
               </span>
             </div>
           ))}
-          <div className="absolute top-6 left-0 right-0 h-1 bg-gray-200 -z-1">
+          <div className="absolute top-5 left-0 right-0 h-1 bg-gray-100">
             <div
-              className="h-full bg-gradient-to-r from-blue-600 to-blue-700 transition-all duration-500"
+              className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500"
               style={{ width: `${((step - 1) / 2) * 100}%` }}
             />
           </div>
@@ -369,12 +346,11 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
   const nextStep = async () => {
     if (!validateStep(step)) return
 
-    // Si on est à l'étape 1 et qu'il n'y a pas d'erreurs d'unicité
     if (step === 1 && !errors.email && !errors.phone) {
-      setStep(2) // Passer à l'étape de vérification d'email
+      setStep(2)
     } else if (step === 2) {
       if (isEmailVerified) {
-        setStep(3) // Passer à l'étape de profil
+        setStep(3)
       } else {
         customToast({
           title: "Vérification requise",
@@ -387,7 +363,6 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
 
   const handleEmailVerified = () => {
     setIsEmailVerified(true)
-    // Ne pas passer automatiquement à l'étape suivante
     customToast({
       title: "Email vérifié",
       description: "Votre email a été vérifié avec succès",
@@ -401,23 +376,23 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
-      <div className="bg-gradient-to-b from-blue-50 to-white p-8 rounded-xl">
+      <div className="bg-white p-10 rounded-2xl shadow-lg border border-gray-100">
         {renderProgressSteps()}
 
         {/* Étape 1 - Identité */}
         {step === 1 && (
-          <div className="space-y-6 bg-white p-8 rounded-xl shadow-md border border-gray-100">
-            <div className="border-b border-gray-100 pb-4 mb-6">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                <User className="mr-3 text-blue-600" size={24} />
+          <div className="space-y-8">
+            <div className="border-b border-gray-100 pb-4">
+              <h2 className="text-2xl font-semibold text-gray-900 flex items-center">
+                <User className="mr-2 text-blue-600" size={24} />
                 Informations personnelles
               </h2>
-              <p className="text-gray-600 mt-2">Tous les champs marqués d'un * sont obligatoires</p>
+              <p className="text-gray-500 text-sm mt-2">Tous les champs marqués d’un * sont obligatoires</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="firstName" className="text-gray-700 font-medium flex items-center">
+                <Label htmlFor="firstName" className="text-sm font-semibold text-gray-700 flex items-center">
                   Prénom <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <div className="relative">
@@ -425,19 +400,21 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                     id="firstName"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className={`pl-10 h-11 transition-all duration-200 ${errors.firstName ? "border-red-500 focus:ring-red-200" : "border-gray-200 focus:border-blue-500 focus:ring-blue-100"}`}
+                    className={`pl-10 h-12 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 ${
+                      errors.firstName ? "border-red-500 focus:ring-red-100" : ""
+                    }`}
                   />
-                  <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <User className="absolute left-3 top-3.5 text-gray-400" size={18} />
                 </div>
                 {errors.firstName && (
-                  <p className="text-red-500 text-sm flex items-center mt-1">
+                  <p className="text-red-500 text-xs flex items-center mt-1 animate-in fade-in">
                     <AlertCircle className="mr-1 h-4 w-4" /> {errors.firstName}
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="lastName" className="text-gray-700 font-medium flex items-center">
+                <Label htmlFor="lastName" className="text-sm font-semibold text-gray-700 flex items-center">
                   Nom <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <div className="relative">
@@ -445,19 +422,21 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                     id="lastName"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className={`pl-10 h-11 transition-all duration-200 ${errors.lastName ? "border-red-500 focus:ring-red-200" : "border-gray-200 focus:border-blue-500 focus:ring-blue-100"}`}
+                    className={`pl-10 h-12 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 ${
+                      errors.lastName ? "border-red-500 focus:ring-red-100" : ""
+                    }`}
                   />
-                  <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <User className="absolute left-3 top-3.5 text-gray-400" size={18} />
                 </div>
                 {errors.lastName && (
-                  <p className="text-red-500 text-sm flex items-center mt-1">
+                  <p className="text-red-500 text-xs flex items-center mt-1 animate-in fade-in">
                     <AlertCircle className="mr-1 h-4 w-4" /> {errors.lastName}
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700 font-medium flex items-center">
+                <Label htmlFor="email" className="text-sm font-semibold text-gray-700 flex items-center">
                   Email <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <div className="relative">
@@ -467,70 +446,112 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     onBlur={handleEmailBlur}
-                    className={`pl-10 h-11 transition-all duration-200 ${errors.email ? "border-red-500 focus:ring-red-200" : "border-gray-200 focus:border-blue-500 focus:ring-blue-100"}`}
+                    className={`pl-10 h-12 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 ${
+                      errors.email ? "border-red-500 focus:ring-red-100" : ""
+                    }`}
                   />
-                  <Mail className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <Mail className="absolute left-3
+
+ top-3.5 text-gray-400" size={18} />
                   {isCheckingEmail && (
-                    <Loader2 className="absolute right-3 top-3 text-blue-500 animate-spin" size={18} />
+                    <Loader2 className="absolute right-3 top-3.5 text-blue-500 animate-spin" size={18} />
                   )}
                 </div>
                 {errors.email && (
-                  <p className="text-red-500 text-sm flex items-center mt-1">
+                  <p className="text-red-500 text-xs flex items-center mt-1 animate-in fade-in">
                     <AlertCircle className="mr-1 h-4 w-4" /> {errors.email}
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">Format: exemple@domaine.com</p>
+                <p className="text-xs text-gray-500 mt-1">Format : exemple@domaine.com</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-gray-700 font-medium flex items-center">
+                <Label htmlFor="phone" className="text-sm font-semibold text-gray-700 flex items-center">
                   Téléphone <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <div className="relative">
-                  <div className={`${errors.phone ? "phone-input-error" : ""}`}>
-                    <PhoneInput
-                      international
-                      defaultCountry="MA"
-                      value={formData.phone}
-                      onChange={handlePhoneChange}
-                      onBlur={handlePhoneBlur}
-                      className={`h-11 transition-all duration-200 ${errors.phone ? "border-red-500" : "border-gray-200"}`}
-                    />
-                  </div>
+                  <PhoneInput
+                    international
+                    defaultCountry="MA"
+                    value={formData.phone}
+                    onChange={handlePhoneChange}
+                    onBlur={handlePhoneBlur}
+                    className={`h-12 rounded-lg border transition-all duration-200 ${
+                      errors.phone ? "border-red-500" : "border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100"
+                    }`}
+                  />
                   {isCheckingPhone && (
-                    <Loader2 className="absolute right-3 top-3 text-blue-500 animate-spin" size={18} />
+                    <Loader2 className="absolute right-3 top-3.5 text-blue-500 animate-spin" size={18} />
                   )}
                 </div>
                 {errors.phone && (
-                  <p className="text-red-500 text-sm flex items-center mt-1">
+                  <p className="text-red-500 text-xs flex items-center mt-1 animate-in fade-in">
                     <AlertCircle className="mr-1 h-4 w-4" /> {errors.phone}
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">Sélectionnez votre pays et entrez votre numéro</p>
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="address" className="text-gray-700 font-medium">
-                  Adresse
+              <div className="space-y-2">
+                <Label htmlFor="country" className="text-sm font-semibold text-gray-700 flex items-center">
+                  Pays <span className="text-red-500 ml-1">*</span>
+                </Label>
+                <div className="relative">
+                  <Select
+                    value={formData.country}
+                    onValueChange={(value) => setFormData({ ...formData, country: value })}
+                  >
+                    <SelectTrigger
+                      className={`pl-10 h-12 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 ${
+                        errors.country ? "border-red-500 focus:ring-red-100" : ""
+                      }`}
+                    >
+                      <SelectValue placeholder="Sélectionnez votre pays" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60 bg-white rounded-lg shadow-lg border-gray-100">
+                      <SelectItem value="MA">Maroc</SelectItem>
+                      <SelectItem value="FR">France</SelectItem>
+                      <SelectItem value="BE">Belgique</SelectItem>
+                      <SelectItem value="CH">Suisse</SelectItem>
+                      <SelectItem value="CA">Canada</SelectItem>
+                      <SelectItem value="SN">Sénégal</SelectItem>
+                      <SelectItem value="CI">Côte d'Ivoire</SelectItem>
+                      <SelectItem value="TN">Tunisie</SelectItem>
+                      <SelectItem value="DZ">Algérie</SelectItem>
+                      <SelectItem value="OTHER">Autre</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <MapPin className="absolute left-3 top-3.5 text-gray-400" size={18} />
+                </div>
+                {errors.country && (
+                  <p className="text-red-500 text-xs flex items-center mt-1 animate-in fade-in">
+                    <AlertCircle className="mr-1 h-4 w-4" /> {errors.country}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="city" className="text-sm font-semibold text-gray-700">
+                  Ville
                 </Label>
                 <div className="relative">
                   <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-100 transition-all duration-200"
+                    id="city"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="pl-10 h-12 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
                   />
-                  <MapPin className="absolute left-3 top-3 text-gray-400" size={18} />
+                  <MapPin className="absolute left-3 top-3.5 text-gray-400" size={18} />
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end pt-6 mt-4 border-t border-gray-100">
+            <div className="flex justify-end pt-6 border-t border-gray-100">
               <Button
                 type="button"
                 onClick={nextStep}
                 disabled={isSubmitting || isCheckingEmail || isCheckingPhone}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-6 py-3 h-12 rounded-lg shadow-md transition-all duration-200 font-medium"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-8 py-3 rounded-lg shadow-md transition-all duration-300 font-semibold text-white"
               >
                 {isSubmitting || isCheckingEmail || isCheckingPhone ? (
                   <>
@@ -550,22 +571,22 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
 
         {/* Étape 2 - Vérification email */}
         {step === 2 && (
-          <div className="bg-white p-8 rounded-xl shadow-md border border-gray-100">
-            <div className="border-b border-gray-100 pb-4 mb-6">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                <Shield className="mr-3 text-blue-600" size={24} />
+          <div className="space-y-8">
+            <div className="border-b border-gray-100 pb-4">
+              <h2 className="text-2xl font-semibold text-gray-900 flex items-center">
+                <Shield className="mr-2 text-blue-600" size={24} />
                 Vérification de votre email
               </h2>
-              <p className="text-gray-600 mt-2">Nous avons besoin de vérifier votre adresse email</p>
+              <p className="text-gray-500 text-sm mt-2">Vérifiez votre adresse email pour continuer</p>
             </div>
             <EmailVerification email={formData.email} onVerified={handleEmailVerified} onBack={prevStep} />
 
-            <div className="flex justify-between pt-6 mt-8 border-t border-gray-100">
+            <div className="flex justify-between pt-6 border-t border-gray-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={prevStep}
-                className="border-gray-300 hover:bg-gray-50 transition-colors duration-200"
+                className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 rounded-lg shadow-sm transition-all duration-300 font-semibold"
               >
                 Retour
               </Button>
@@ -573,7 +594,7 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                 type="button"
                 onClick={nextStep}
                 disabled={!isEmailVerified}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-6 py-3 h-12 rounded-lg shadow-md transition-all duration-200 font-medium"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-8 py-3 rounded-lg shadow-md transition-all duration-300 font-semibold text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 {isEmailVerified ? (
                   <>
@@ -581,7 +602,7 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </>
                 ) : (
-                  "Vérifiez votre email pour continuer"
+                  "Vérifiez votre email"
                 )}
               </Button>
             </div>
@@ -590,19 +611,19 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
 
         {/* Étape 3 - Profil */}
         {step === 3 && (
-          <div className="space-y-6 bg-white p-8 rounded-xl shadow-md border border-gray-100">
-            <div className="border-b border-gray-100 pb-4 mb-6">
-              <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-                <Briefcase className="mr-3 text-blue-600" size={24} />
+          <div className="space-y-8">
+            <div className="border-b border-gray-100 pb-4">
+              <h2 className="text-2xl font-semibold text-gray-900 flex items-center">
+                <Briefcase className="mr-2 text-blue-600" size={24} />
                 Votre profil professionnel
               </h2>
-              <p className="text-gray-600 mt-2">Parlez-nous de vos intérêts et objectifs professionnels</p>
+              <p className="text-gray-500 text-sm mt-2">Parlez-nous de vos intérêts et objectifs professionnels</p>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="sector" className="text-gray-700 font-medium flex items-center">
-                  Secteur d'activité <span className="text-red-500 ml-1">*</span>
+                <Label htmlFor="sector" className="text-sm font-semibold text-gray-700 flex items-center">
+                  Secteur d’activité <span className="text-red-500 ml-1">*</span>
                 </Label>
                 <div className="relative">
                   <Select
@@ -610,11 +631,13 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                     onValueChange={(value) => setFormData({ ...formData, sector: value })}
                   >
                     <SelectTrigger
-                      className={`pl-10 h-11 transition-all duration-200 ${errors.sector ? "border-red-500 focus:ring-red-200" : "border-gray-200 focus:border-blue-500 focus:ring-blue-100"}`}
+                      className={`pl-10 h-12 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 ${
+                        errors.sector ? "border-red-500 focus:ring-red-100" : ""
+                      }`}
                     >
                       <SelectValue placeholder="Sélectionnez votre secteur" />
                     </SelectTrigger>
-                    <SelectContent className="max-h-60">
+                    <SelectContent className="max-h-60 bg-white rounded-lg shadow-lg border-gray-100">
                       <SelectItem value="TECHNOLOGIE">Technologie</SelectItem>
                       <SelectItem value="AGRO_HALIEUTIQUE">Agro-alimentaire</SelectItem>
                       <SelectItem value="COMMERCE">Commerce</SelectItem>
@@ -624,46 +647,46 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                       <SelectItem value="AUTRE">Autre</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Briefcase className="absolute left-3 top-3 text-gray-400 z-10" size={18} />
+                  <Briefcase className="absolute left-3 top-3.5 text-gray-400" size={18} />
                 </div>
                 {errors.sector && (
-                  <p className="text-red-500 text-sm flex items-center mt-1">
+                  <p className="text-red-500 text-xs flex items-center mt-1 animate-in fade-in">
                     <AlertCircle className="mr-1 h-4 w-4" /> {errors.sector}
                   </p>
                 )}
               </div>
 
-              <div className="space-y-4">
-                <Label className="text-gray-700 font-medium flex items-center">
-                  Centres d'intérêt professionnels <span className="text-red-500 ml-1">*</span>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold text-gray-700 flex items-center">
+                  Centres d’intérêt professionnels <span className="text-red-500 ml-1">*</span>
                 </Label>
-                <div className="grid md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <div className="grid md:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg border border-gray-100">
                   {["MENTORAT", "RESEAUTAGE", "EMPLOI", "FORMATION", "AUTRE"].map((interest) => (
                     <div
                       key={interest}
-                      className="flex items-center space-x-3 p-2 hover:bg-white rounded-md transition-colors duration-200"
+                      className="flex items-center space-x-2 p-2 hover:bg-white rounded-md transition-all duration-200"
                     >
                       <Checkbox
                         id={`interest-${interest}`}
                         checked={formData.professionalInterests.includes(interest)}
                         onCheckedChange={(checked) => handleInterestChange(interest, checked as boolean)}
-                        className="text-blue-600 border-gray-300 focus:ring-blue-500"
+                        className="border-gray-300 text-blue-600 focus:ring-blue-500 rounded"
                       />
-                      <Label htmlFor={`interest-${interest}`} className="font-normal cursor-pointer">
+                      <Label htmlFor={`interest-${interest}`} className="text-sm text-gray-700 cursor-pointer">
                         {interest.charAt(0) + interest.slice(1).toLowerCase()}
                       </Label>
                     </div>
                   ))}
                 </div>
                 {errors.professionalInterests && (
-                  <p className="text-red-500 text-sm flex items-center mt-1">
+                  <p className="text-red-500 text-xs flex items-center mt-1 animate-in fade-in">
                     <AlertCircle className="mr-1 h-4 w-4" /> {errors.professionalInterests}
                   </p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="professionalChallenges" className="text-gray-700 font-medium">
+                <Label htmlFor="professionalChallenges" className="text-sm font-semibold text-gray-700">
                   Défis professionnels actuels
                 </Label>
                 <Textarea
@@ -672,12 +695,12 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                   onChange={(e) => setFormData({ ...formData, professionalChallenges: e.target.value })}
                   rows={4}
                   placeholder="Décrivez brièvement vos défis professionnels..."
-                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-100 transition-all duration-200 resize-none"
+                  className="border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-lg transition-all duration-200 resize-none"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="referralSource" className="text-gray-700 font-medium">
+                <Label htmlFor="referralSource" className="text-sm font-semibold text-gray-700">
                   Comment avez-vous entendu parler de nous ?
                 </Label>
                 <div className="relative">
@@ -685,10 +708,12 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                     value={formData.referralSource}
                     onValueChange={(value) => setFormData({ ...formData, referralSource: value })}
                   >
-                    <SelectTrigger className="pl-10 h-11 border-gray-200 focus:border-blue-500 focus:ring-blue-100 transition-all duration-200">
+                    <SelectTrigger
+                      className="pl-10 h-12 rounded-lg border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200"
+                    >
                       <SelectValue placeholder="Sélectionnez une option" />
                     </SelectTrigger>
-                    <SelectContent className="max-h-60">
+                    <SelectContent className="max-h-60 bg-white rounded-lg shadow-lg border-gray-100">
                       <SelectItem value="SOCIAL_MEDIA">Réseaux sociaux</SelectItem>
                       <SelectItem value="SEARCH">Moteur de recherche</SelectItem>
                       <SelectItem value="FRIEND">Recommandation</SelectItem>
@@ -696,46 +721,46 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
                       <SelectItem value="OTHER">Autre</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Briefcase className="absolute left-3 top-3 text-gray-400 z-10" size={18} />
+                  <Briefcase className="absolute left-3 top-3.5 text-gray-400" size={18} />
                 </div>
               </div>
 
-              <div className="flex items-center space-x-3 pt-2 bg-blue-50 p-3 rounded-lg border border-blue-100">
+              <div className="flex items-center space-x-3 bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <Checkbox
                   id="subscribedToNewsletter"
                   checked={formData.subscribedToNewsletter}
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, subscribedToNewsletter: checked as boolean })
                   }
-                  className="text-blue-600 border-blue-300 focus:ring-blue-500"
+                  className="border-blue-300 text-blue-600 focus:ring-blue-500 rounded"
                 />
-                <Label htmlFor="subscribedToNewsletter" className="font-normal text-blue-800">
+                <Label htmlFor="subscribedToNewsletter" className="text-sm text-blue-900 font-medium">
                   Je souhaite recevoir la newsletter
                 </Label>
               </div>
             </div>
 
-            <div className="flex justify-between pt-6 mt-4 border-t border-gray-100">
+            <div className="flex justify-between pt-6 border-t border-gray-100">
               <Button
                 type="button"
                 variant="outline"
                 onClick={prevStep}
-                className="border-gray-300 hover:bg-gray-50 transition-colors duration-200"
+                className="border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 rounded-lg shadow-sm transition-all duration-300 font-semibold"
               >
                 Retour
               </Button>
               <Button
                 type="submit"
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 px-6 py-3 h-12 rounded-lg shadow-md transition-all duration-200 font-medium"
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 px-8 py-3 rounded-lg shadow-md transition-all duration-300 font-semibold text-white"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Traitement...
+                    Finalisation...
                   </>
                 ) : (
-                  "Finaliser l'inscription"
+                  "Finaliser l’inscription"
                 )}
               </Button>
             </div>
@@ -746,12 +771,12 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
         .PhoneInput {
           display: flex;
           align-items: center;
-          border: 1px solid #e2e8f0;
-          border-radius: 0.375rem;
-          padding: 0 0.5rem;
-          height: 2.75rem;
+          border: 1px solid #e5e7eb;
+          border-radius: 0.5rem;
+          padding: 0 0.75rem;
+          height: 3rem;
           background-color: white;
-          transition: all 0.2s;
+          transition: all 0.2s ease-in-out;
         }
 
         .PhoneInput:focus-within {
@@ -759,12 +784,19 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
           box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
         }
 
-        .phone-input-error .PhoneInput {
-          border-color: #ef4444;
+        .PhoneInput--focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
         }
 
-        .phone-input-error .PhoneInput:focus-within {
-          box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+        .PhoneInputInput {
+          flex: 1;
+          border: none;
+          padding: 0.5rem;
+          font-size: 0.875rem;
+          background: transparent;
+          outline: none;
+          color: #1f2937;
         }
 
         .PhoneInputCountry {
@@ -777,26 +809,17 @@ export default function ProfessionalForm({ utmSource, utmMedium, utmCampaign, on
           width: 1.5rem;
           height: 1rem;
           border-radius: 2px;
-          overflow: hidden;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         .PhoneInputCountrySelectArrow {
           margin-left: 0.25rem;
-          width: 0.5rem;
-          height: 0.5rem;
+          width: 0.35rem;
+          height: 0.35rem;
           border-style: solid;
-          border-color: #64748b;
-          border-width: 0 1px 1px 0;
+          border-color: #6b7280;
+          border-width: 0 2px 2px 0;
           transform: rotate(45deg);
-        }
-
-        .PhoneInputInput {
-          flex: 1;
-          border: none;
-          padding: 0.5rem;
-          font-size: 0.875rem;
-          background: transparent;
-          outline: none;
         }
       `}</style>
     </form>
