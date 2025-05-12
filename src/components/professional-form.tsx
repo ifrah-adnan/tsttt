@@ -15,7 +15,7 @@ import EmailVerification from "@/components/email-verification"
 import { z } from "zod" 
 import { customToast } from "@/components/ui/toast"
 import { emailSchema } from "@/utils/validation"
-import PhoneInput from "react-phone-number-input"
+import PhoneInput from "react-phone-number-input"  
 import "react-phone-number-input/style.css"
 
 const formSchema = z.object({
